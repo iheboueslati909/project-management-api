@@ -12,16 +12,19 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.elokencia.demo.domain.Task;
 import com.elokencia.demo.dto.CreateTaskDto;
 import com.elokencia.demo.dto.TaskDto;
 import com.elokencia.demo.service.TaskService;
+import org.springframework.security.core.Authentication;
 
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/tasks")
+@PreAuthorize("isAuthenticated()")
 public class TaskController {
     private final TaskService taskService;
 
@@ -31,10 +34,11 @@ public class TaskController {
 
     @PostMapping("/project/{projectId}")
     public ResponseEntity<TaskDto> createTask(@PathVariable Long projectId,
-                                            @Valid @RequestBody CreateTaskDto dto) {
+                                            @Valid @RequestBody CreateTaskDto dto,
+                                            Authentication auth) {
         Task task = new Task(dto.title(), Task.Status.valueOf(dto.status()));
 
-        Task saved = taskService.createTask(projectId, dto.assigneeId(), task);
+        Task saved = taskService.createTask(projectId, dto.assigneeId(), task, auth);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new TaskDto(
@@ -62,16 +66,16 @@ public class TaskController {
 
     @PutMapping("/{id}")
     public ResponseEntity<TaskDto> updateTask(@PathVariable Long id,
-                                              @Valid @RequestBody com.elokencia.demo.dto.UpdateTaskDto dto) {
-        Task updated = taskService.updateTask(id, dto);
+                                              @Valid @RequestBody com.elokencia.demo.dto.UpdateTaskDto dto,
+                                              Authentication auth) {
+        Task updated = taskService.updateTask(id, dto, auth);
         return ResponseEntity.ok(new TaskDto(updated.getId(), updated.getTitle(), updated.getStatus(), updated.getProject().getId(), updated.getAssignee() != null ? updated.getAssignee().getId() : null));
     }
 
-    //TODO AFTER AUTH IMPLEMENTATION
-    // @DeleteMapping("/{id}")
-    // public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
-    //     taskService.deleteTask(id);
-    //     return ResponseEntity.noContent().build();
-    // }
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTask(@PathVariable Long id, Authentication auth) {
+        taskService.deleteTask(id, auth);
+        return ResponseEntity.noContent().build();
+    }
 
 }

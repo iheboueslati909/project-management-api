@@ -1,6 +1,8 @@
 package com.elokencia.demo.service;
 
 import java.util.List;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,16 +19,27 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
     private final com.elokencia.demo.repository.UserRepository userRepository;
+    private final AuthService authService;
 
-    public TaskService(TaskRepository taskRepository, ProjectRepository projectRepository, com.elokencia.demo.repository.UserRepository userRepository) {
+    public TaskService(TaskRepository taskRepository, ProjectRepository projectRepository, com.elokencia.demo.repository.UserRepository userRepository, AuthService authService) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
+        this.authService = authService;
     }
 
-    public Task createTask(Long projectId, Long assigneeId, Task task) {
+    public Task createTask(Long projectId, Long assigneeId, Task task, Authentication auth) {
         Project project = projectRepository.findById(projectId)
             .orElseThrow(() -> new ResourceNotFoundException("Project not found with id " + projectId));
+
+        User current = authService.getUserIfExists(auth);
+        if (current == null) {
+            throw new AccessDeniedException("Unauthenticated");
+        }
+
+        if (project.getOwner() == null || !project.getOwner().getId().equals(current.getId())) {
+            throw new AccessDeniedException("Only the project owner can create tasks for this project");
+        }
 
         task.setProject(project);
 
@@ -48,8 +61,19 @@ public class TaskService {
             .orElseThrow(() -> new ResourceNotFoundException("Task not found with id " + id));
     }
 
-    public Task updateTask(Long id, com.elokencia.demo.dto.UpdateTaskDto dto) {
+    public Task updateTask(Long id, com.elokencia.demo.dto.UpdateTaskDto dto, Authentication auth) {
         Task task = getTaskById(id);
+
+        User current = authService.getUserIfExists(auth);
+        if (current == null) {
+            throw new AccessDeniedException("Unauthenticated");
+        }
+
+        boolean isOwner = task.getProject().getOwner() != null && task.getProject().getOwner().getId().equals(current.getId());
+        boolean isAssignee = task.getAssignee() != null && task.getAssignee().getId().equals(current.getId());
+        if (!isOwner && !isAssignee) {
+            throw new AccessDeniedException("You are not allowed to update this task");
+        }
 
         if (dto.title() != null) {
             task.setTitle(dto.title());
@@ -68,7 +92,20 @@ public class TaskService {
         return taskRepository.save(task);
     }
 
-    public void deleteTask(Long id) {
+    public void deleteTask(Long id, Authentication auth) {
+        Task task = getTaskById(id);
+
+        User current = authService.getUserIfExists(auth);
+        if (current == null) {
+            throw new AccessDeniedException("Unauthenticated");
+        }
+
+        boolean isOwner = task.getProject().getOwner() != null && task.getProject().getOwner().getId().equals(current.getId());
+        boolean isAssignee = task.getAssignee() != null && task.getAssignee().getId().equals(current.getId());
+        if (!isOwner && !isAssignee) {
+            throw new AccessDeniedException("You are not allowed to delete this task");
+        }
+
         taskRepository.deleteById(id);
     }
 }

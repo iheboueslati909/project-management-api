@@ -1,9 +1,11 @@
 package com.elokencia.demo.service;
 
-import java.nio.file.AccessDeniedException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+
+import com.elokencia.demo.service.AuthService;
 import java.util.List;
 
-import org.springframework.boot.autoconfigure.security.oauth2.resource.OAuth2ResourceServerProperties.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,22 +13,24 @@ import com.elokencia.demo.domain.Project;
 import com.elokencia.demo.domain.User;
 import com.elokencia.demo.exceptions.ResourceNotFoundException;
 import com.elokencia.demo.repository.ProjectRepository;
-import com.elokencia.demo.repository.UserRepository;
 
 @Service
 @Transactional
 public class ProjectService {
     private final ProjectRepository projectRepository;
-    private final UserRepository userRepository;
-
-    public ProjectService(ProjectRepository projectRepository, UserRepository userRepository) {
+    private final AuthService authService;
+    
+    public ProjectService(ProjectRepository projectRepository, AuthService authService) {
         this.projectRepository = projectRepository;
-        this.userRepository = userRepository;
+        this.authService = authService;
     }
 
-    public Project createProject(Long ownerId, Project project) {
-        User user = userRepository.findById(ownerId)
-            .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + ownerId));
+    public Project createProject(Project project, Authentication auth) {
+        User user = authService.getUserIfExists(auth);
+
+        if (user == null) {
+            throw new AccessDeniedException("Unauthenticated");
+        }
 
         project.setOwner(user);
         return projectRepository.save(project);
@@ -41,8 +45,17 @@ public class ProjectService {
             .orElseThrow(() -> new ResourceNotFoundException("Project not found with id " + id));
     }
 
-    public Project updateProject(Long id, com.elokencia.demo.dto.UpdateProjectDto dto) {
+    public Project updateProject(Long id, com.elokencia.demo.dto.UpdateProjectDto dto, Authentication auth) {
         Project project = getProjectById(id);
+
+        User currentUser = authService.getUserIfExists(auth);
+        if (currentUser == null) {
+            throw new AccessDeniedException("Unauthenticated");
+        }
+
+        if (project.getOwner() == null || !project.getOwner().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Only the project owner can update this project");
+        }
 
         if (dto.name() != null) {
             project.setName(dto.name());
@@ -54,20 +67,20 @@ public class ProjectService {
         return projectRepository.save(project);
     }
 
-    //TODO AFTER AUTH IMPLEMENTATION
-    // public void deleteProject(Long id, Authentication auth) {
-    //     Project project = projectRepository.findById(id)
-    //         .orElseThrow(() -> new ResourceNotFoundException("Project not found with id " + id));
+    public void deleteProject(Long id, Authentication auth) {
+        Project project = projectRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Project not found with id " + id));
 
-    //     // Get current user (from JWT claims, already validated by Spring Security)
-    //     Jwt jwt = (Jwt) auth.getPrincipal();
-    //     String currentUserEmail = jwt.getClaim("preferred_username");
+        User currentUser = authService.getUserIfExists(auth);
+        if (currentUser == null) {
+            throw new AccessDeniedException("Unauthenticated");
+        }
 
-    //     // Check ownership
-    //     if (!project.getOwner().getEmail().equalsIgnoreCase(currentUserEmail)) {
-    //         throw new AccessDeniedException("You are not allowed to delete this project");
-    //     }
+        if (!project.getOwner().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("You are not allowed to delete this project");
+        }
 
-    //     projectRepository.delete(project);
-    // }
+        projectRepository.delete(project);
+    }
+
 }
