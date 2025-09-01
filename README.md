@@ -4,9 +4,14 @@ A secure, production-ready Spring Boot 3.5 (LTS) API for managing projects and t
 Built as a monolithic application with a layered architecture, following REST best practices and enriched with lightweight features to demonstrate real-world readiness.
 
 (
-    application.yml, since it contains sensitive information, i didn't want to push it . download the file and place it in \src\main\resources
+    application.yml, since it contains sensitive information, i didn't want to push it . download the file and place it in \src\main\resources .
     link : https://www.swisstransfer.com/d/96b462ea-8fbe-489f-8d1f-65ec6f8d6ca0
-    )
+)
+
+(
+    For the Postman collection, in case you didn't receive an invitation in your email, here is a link where you can download it as JSON.
+    link : https://www.swisstransfer.com/d/d32f6ef0-246d-4449-839b-917c1416230a
+)
 
 ✨ Key Features
 
