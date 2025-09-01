@@ -19,10 +19,12 @@ import com.elokencia.demo.repository.ProjectRepository;
 public class ProjectService {
     private final ProjectRepository projectRepository;
     private final AuthService authService;
+    private final ActivityLogService activityLogService;
     
-    public ProjectService(ProjectRepository projectRepository, AuthService authService) {
+    public ProjectService(ProjectRepository projectRepository, AuthService authService, ActivityLogService activityLogService) {
         this.projectRepository = projectRepository;
         this.authService = authService;
+        this.activityLogService = activityLogService;
     }
 
     public Project createProject(Project project, Authentication auth) {
@@ -32,8 +34,10 @@ public class ProjectService {
             throw new AccessDeniedException("Unauthenticated");
         }
 
-        project.setOwner(user);
-        return projectRepository.save(project);
+    project.setOwner(user);
+    Project saved = projectRepository.save(project);
+    activityLogService.createLog(user.getId(), saved.getId(), new com.elokencia.demo.domain.ActivityLog("PROJECT_CREATED:" + saved.getId()));
+    return saved;
     }
 
     public List<Project> getProjectsByOwner(Long ownerId) {
@@ -64,7 +68,9 @@ public class ProjectService {
             project.setDescription(dto.description());
         }
 
-        return projectRepository.save(project);
+        Project saved = projectRepository.save(project);
+        activityLogService.createLog(currentUser.getId(), saved.getId(), new com.elokencia.demo.domain.ActivityLog("PROJECT_UPDATED:" + saved.getId()));
+        return saved;
     }
 
     public void deleteProject(Long id, Authentication auth) {
@@ -78,8 +84,8 @@ public class ProjectService {
 
         if (!project.getOwner().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException("You are not allowed to delete this project");
-        }
-
+        }    
+        
         projectRepository.delete(project);
     }
 

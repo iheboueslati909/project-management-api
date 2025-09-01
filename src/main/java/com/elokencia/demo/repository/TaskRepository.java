@@ -8,4 +8,5 @@ import com.elokencia.demo.domain.Task;
 @Repository
 public interface TaskRepository extends JpaRepository<Task, Long> {
     List<Task> findByProjectId(Long projectId);
+    List<Task> findByAssigneeId(Long assigneeId);
 }

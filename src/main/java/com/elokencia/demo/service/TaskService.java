@@ -20,12 +20,14 @@ public class TaskService {
     private final ProjectRepository projectRepository;
     private final com.elokencia.demo.repository.UserRepository userRepository;
     private final AuthService authService;
+    private final ActivityLogService activityLogService;
 
-    public TaskService(TaskRepository taskRepository, ProjectRepository projectRepository, com.elokencia.demo.repository.UserRepository userRepository, AuthService authService) {
+    public TaskService(TaskRepository taskRepository, ProjectRepository projectRepository, com.elokencia.demo.repository.UserRepository userRepository, AuthService authService, ActivityLogService activityLogService) {
         this.taskRepository = taskRepository;
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.authService = authService;
+        this.activityLogService = activityLogService;
     }
 
     public Task createTask(Long projectId, Long assigneeId, Task task, Authentication auth) {
@@ -49,7 +51,10 @@ public class TaskService {
             task.setAssignee(assignee);
         }
 
-        return taskRepository.save(task);
+    Task saved = taskRepository.save(task);
+    
+    activityLogService.createLog(current.getId(), project.getId(), new com.elokencia.demo.domain.ActivityLog("TASK_CREATED:" + saved.getId()));
+    return saved;
     }
 
     public List<Task> getTasksByProject(Long projectId) {
@@ -89,7 +94,9 @@ public class TaskService {
             task.setAssignee(user);
         }
 
-        return taskRepository.save(task);
+    Task saved = taskRepository.save(task);
+    activityLogService.createLog(current.getId(), task.getProject().getId(), new com.elokencia.demo.domain.ActivityLog("TASK_UPDATED:" + saved.getId()));
+    return saved;
     }
 
     public void deleteTask(Long id, Authentication auth) {
@@ -106,6 +113,6 @@ public class TaskService {
             throw new AccessDeniedException("You are not allowed to delete this task");
         }
 
-        taskRepository.deleteById(id);
+    taskRepository.deleteById(id);
     }
 }

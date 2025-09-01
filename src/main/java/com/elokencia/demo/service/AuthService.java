@@ -47,7 +47,7 @@ public class AuthService {
 
     public User getUserIfExists(Authentication authentication) {
         Jwt jwt = (Jwt) authentication.getPrincipal();
-    String email = jwt.getClaims().containsKey("email") ? jwt.getClaim("email") : jwt.getClaim("preferred_username");
+        String email = jwt.getClaims().containsKey("email") ? jwt.getClaim("email") : jwt.getClaim("preferred_username");
         return userRepository.findByEmail(email).orElse(null);
     }
 }
